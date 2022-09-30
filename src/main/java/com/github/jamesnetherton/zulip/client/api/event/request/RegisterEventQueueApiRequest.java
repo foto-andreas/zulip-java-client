@@ -17,9 +17,10 @@ import com.github.jamesnetherton.zulip.client.http.ZulipHttpClient;
  */
 public class RegisterEventQueueApiRequest extends ZulipApiRequest implements ExecutableApiRequest<EventQueue> {
 
-    public static final String EVENT_TYPES = "event_types";
-    public static final String NARROW = "narrow";
-    public static final String[] MONITORED_EVENTS = new String[] { "message" };
+    private static final String EVENT_TYPES = "event_types";
+    private static final String ALL_PUBLIC_STREAMS = "all_public_streams";
+    private static final String NARROW = "narrow";
+    private static final String[] MONITORED_EVENTS = new String[] { "message" };
 
     /**
      * Constructs a {@link ZulipApiRequest}.
@@ -31,6 +32,7 @@ public class RegisterEventQueueApiRequest extends ZulipApiRequest implements Exe
     public RegisterEventQueueApiRequest(ZulipHttpClient client, Narrow... narrows) {
         super(client);
         putParamAsJsonString(EVENT_TYPES, MONITORED_EVENTS);
+        this.putParamAsJsonString(ALL_PUBLIC_STREAMS, Boolean.TRUE);
 
         if (narrows.length > 0) {
             String[][] stringNarrows = new String[1][narrows.length];
