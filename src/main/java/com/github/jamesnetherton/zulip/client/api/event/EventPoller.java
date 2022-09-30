@@ -24,6 +24,8 @@ public class EventPoller {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventPoller.class.getName());
 
+    private static final int SLEEP_INTERVAL = 1_000;
+
     private final MessageEventListener listener;
     private final ZulipHttpClient client;
     private final Narrow[] narrows;
@@ -80,8 +82,8 @@ public class EventPoller {
                                     .get()
                                     .getId();
 
-                            Thread.sleep(5000);
                         } catch (ZulipClientException e) {
+                            Thread.sleep(EventPoller.SLEEP_INTERVAL);
                             EventPoller.LOGGER.warn("Error processing events - ", e);
                             if (e.getCode().equals("BAD_EVENT_QUEUE_ID")) {
                                 // Queue may have been garbage collected so recreate it
