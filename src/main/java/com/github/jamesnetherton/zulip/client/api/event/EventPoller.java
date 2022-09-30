@@ -10,7 +10,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Polls Zulip for real-time events. At present this is limited to consuming new message events.
@@ -21,7 +22,7 @@ import java.util.logging.Logger;
  */
 public class EventPoller {
 
-    private static final Logger LOG = Logger.getLogger(EventPoller.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventPoller.class.getName());
 
     private final MessageEventListener listener;
     private final ZulipHttpClient client;
@@ -51,8 +52,8 @@ public class EventPoller {
      */
     public synchronized void start() throws ZulipClientException {
         if (status.equals(Status.STOPPED)) {
-            LOG.info("EventPoller starting");
             status = Status.STARTING;
+            LOGGER.info("EventPoller starting");
 
             RegisterEventQueueApiRequest createQueue = new RegisterEventQueueApiRequest(this.client, narrows);
             GetMessageEventsApiRequest getEvents = new GetMessageEventsApiRequest(this.client);
@@ -81,13 +82,13 @@ public class EventPoller {
 
                             Thread.sleep(5000);
                         } catch (ZulipClientException e) {
-                            LOG.warning("Error processing events - " + e.getMessage());
+                            EventPoller.LOGGER.warn("Error processing events - ", e);
                             if (e.getCode().equals("BAD_EVENT_QUEUE_ID")) {
                                 // Queue may have been garbage collected so recreate it
                                 try {
                                     queue = createQueue.execute();
                                 } catch (ZulipClientException zulipClientException) {
-                                    LOG.warning("Error recreating message queue - " + e.getMessage());
+                                    EventPoller.LOGGER.warn("Error recreating message queue - ", e);
                                 }
                             }
                         } catch (InterruptedException e) {
@@ -97,8 +98,8 @@ public class EventPoller {
                 }
             });
 
-            LOG.info("EventPoller started");
             status = Status.STARTED;
+            LOGGER.info("EventPoller started");
         }
     }
 
@@ -108,17 +109,17 @@ public class EventPoller {
     public synchronized void stop() {
         if (status.equals(Status.STARTING) || status.equals(Status.STARTED)) {
             try {
-                LOG.info("EventPoller stopping");
                 status = Status.STOPPING;
                 executor.shutdown();
                 DeleteEventQueueApiRequest deleteQueue = new DeleteEventQueueApiRequest(this.client, queue.getQueueId());
+                LOGGER.info("EventPoller stopping");
                 deleteQueue.execute();
             } catch (ZulipClientException e) {
-                LOG.warning("Error deleting event queue - " + e.getMessage());
+                LOGGER.warn("Error deleting event queue - " + e);
             } finally {
-                LOG.info("EventPoller stopped");
                 executor = null;
                 status = Status.STOPPED;
+                LOGGER.info("EventPoller stopped");
             }
         }
     }
