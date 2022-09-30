@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Polls Zulip for real-time events. At present this is limited to consuming new message events.
- *
+ * <p>
  * Note that this implementation is highly experimental and subject to change or removal.
  *
  * @see <a href="https://zulip.com/api/real-time-events">https://zulip.com/api/real-time-events</a>
@@ -38,10 +38,10 @@ public class EventPoller {
      *
      * @param client   The Zulip HTTP client
      * @param listener The {@link MessageEventListener} to be invoked on each message event
-     * @param narrows  optional {@link Narrow} expressions to filter which message events are captured. E.g messages from a
-     *                 specific stream
+     * @param narrows  optional {@link Narrow} expressions to filter which message events are captured. E.g messages
+     *                 from a specific stream
      */
-    public EventPoller(ZulipHttpClient client, MessageEventListener listener, Narrow[] narrows) {
+    public EventPoller(final ZulipHttpClient client, final MessageEventListener listener, final Narrow[] narrows) {
         this.client = client;
         this.listener = listener;
         this.narrows = narrows;
@@ -53,55 +53,56 @@ public class EventPoller {
      * @throws ZulipClientException if the event polling request was not successful
      */
     public synchronized void start() throws ZulipClientException {
-        if (status.equals(Status.STOPPED)) {
-            status = Status.STARTING;
+        if (this.status.equals(Status.STOPPED)) {
             LOGGER.info("EventPoller starting");
+            this.status = Status.STARTING;
 
-            RegisterEventQueueApiRequest createQueue = new RegisterEventQueueApiRequest(this.client, narrows);
-            GetMessageEventsApiRequest getEvents = new GetMessageEventsApiRequest(this.client);
+            final RegisterEventQueueApiRequest createQueue = new RegisterEventQueueApiRequest(this.client, this.narrows);
+            final GetMessageEventsApiRequest getEvents = new GetMessageEventsApiRequest(this.client);
 
-            queue = createQueue.execute();
-            executor = Executors.newSingleThreadExecutor();
+            this.queue = createQueue.execute();
+            this.executor = Executors.newSingleThreadExecutor();
 
-            executor.submit(new Runnable() {
-                private long lastEventId = queue.getLastEventId();
+            this.executor.submit(new Runnable() {
+                private long lastEventId = EventPoller.this.queue.getLastEventId();
 
                 @Override
                 public void run() {
-                    while (status.equals(Status.STARTING) || status.equals(Status.STARTED)) {
+                    while (EventPoller.this.status.equals(Status.STARTING) || EventPoller.this.status.equals(Status.STARTED)) {
                         try {
-                            getEvents.withQueueId(queue.getQueueId());
-                            getEvents.withLastEventId(lastEventId);
+                            EventPoller.LOGGER.debug("last_event_id: " + this.lastEventId);
+                            getEvents.withQueueId(EventPoller.this.queue.getQueueId());
+                            getEvents.withLastEventId(this.lastEventId);
 
-                            List<MessageEvent> messageEvents = getEvents.execute();
-                            for (MessageEvent event : messageEvents) {
-                                listener.onEvent(event.getMessage());
+                            final List<MessageEvent> messageEvents = getEvents.execute();
+                            for (final MessageEvent event : messageEvents) {
+                                EventPoller.this.listener.onEvent(event.getMessage());
                             }
 
-                            lastEventId = messageEvents.stream().max(Comparator.comparing(Event::getId))
+                            this.lastEventId = messageEvents.stream().max(Comparator.comparing(Event::getId))
                                     .get()
                                     .getId();
 
-                        } catch (ZulipClientException e) {
                             Thread.sleep(EventPoller.SLEEP_INTERVAL);
+                        } catch (final ZulipClientException e) {
                             EventPoller.LOGGER.warn("Error processing events - ", e);
                             if (e.getCode().equals("BAD_EVENT_QUEUE_ID")) {
                                 // Queue may have been garbage collected so recreate it
                                 try {
-                                    queue = createQueue.execute();
-                                } catch (ZulipClientException zulipClientException) {
+                                    EventPoller.this.queue = createQueue.execute();
+                                } catch (final ZulipClientException zulipClientException) {
                                     EventPoller.LOGGER.warn("Error recreating message queue - ", e);
                                 }
                             }
-                        } catch (InterruptedException e) {
+                        } catch (final InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }
                     }
                 }
             });
 
-            status = Status.STARTED;
             LOGGER.info("EventPoller started");
+            this.status = Status.STARTED;
         }
     }
 
@@ -109,25 +110,26 @@ public class EventPoller {
      * Stops message polling.
      */
     public synchronized void stop() {
-        if (status.equals(Status.STARTING) || status.equals(Status.STARTED)) {
+        if (this.status.equals(Status.STARTING) || this.status.equals(Status.STARTED)) {
             try {
-                status = Status.STOPPING;
-                executor.shutdown();
-                DeleteEventQueueApiRequest deleteQueue = new DeleteEventQueueApiRequest(this.client, queue.getQueueId());
                 LOGGER.info("EventPoller stopping");
+                this.status = Status.STOPPING;
+                this.executor.shutdown();
+                final DeleteEventQueueApiRequest deleteQueue = new DeleteEventQueueApiRequest(this.client,
+                        this.queue.getQueueId());
                 deleteQueue.execute();
-            } catch (ZulipClientException e) {
+            } catch (final ZulipClientException e) {
                 LOGGER.warn("Error deleting event queue - " + e);
             } finally {
-                executor = null;
-                status = Status.STOPPED;
                 LOGGER.info("EventPoller stopped");
+                this.executor = null;
+                this.status = Status.STOPPED;
             }
         }
     }
 
     public boolean isStarted() {
-        return status.equals(Status.STARTED);
+        return this.status.equals(Status.STARTED);
     }
 
     private enum Status {

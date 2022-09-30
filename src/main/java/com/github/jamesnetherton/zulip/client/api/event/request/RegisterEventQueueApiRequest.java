@@ -26,21 +26,21 @@ public class RegisterEventQueueApiRequest extends ZulipApiRequest implements Exe
      * Constructs a {@link ZulipApiRequest}.
      *
      * @param client  The Zulip HTTP client
-     * @param narrows optional {@link Narrow} expressions to filter which message events are captured. E.g messages from a
-     *                specific stream
+     * @param narrows optional {@link Narrow} expressions to filter which message events are captured. E.g messages
+     *                from a specific stream
      */
-    public RegisterEventQueueApiRequest(ZulipHttpClient client, Narrow... narrows) {
+    public RegisterEventQueueApiRequest(final ZulipHttpClient client, final Narrow... narrows) {
         super(client);
-        putParamAsJsonString(EVENT_TYPES, MONITORED_EVENTS);
+        this.putParamAsJsonString(EVENT_TYPES, MONITORED_EVENTS);
         this.putParamAsJsonString(ALL_PUBLIC_STREAMS, Boolean.TRUE);
 
         if (narrows.length > 0) {
-            String[][] stringNarrows = new String[1][narrows.length];
+            final String[][] stringNarrows = new String[1][narrows.length];
             for (int i = 0; i < narrows.length; i++) {
                 stringNarrows[i] = new String[] { narrows[i].getOperator(), narrows[i].getOperand() };
             }
 
-            putParamAsJsonString(NARROW, stringNarrows);
+            this.putParamAsJsonString(NARROW, stringNarrows);
         }
     }
 
@@ -52,7 +52,7 @@ public class RegisterEventQueueApiRequest extends ZulipApiRequest implements Exe
      */
     @Override
     public EventQueue execute() throws ZulipClientException {
-        RegisterEventQueueApiResponse response = client().post(REGISTER_QUEUE, getParams(),
+        final RegisterEventQueueApiResponse response = this.client().post(REGISTER_QUEUE, this.getParams(),
                 RegisterEventQueueApiResponse.class);
         return new EventQueue(response);
     }
